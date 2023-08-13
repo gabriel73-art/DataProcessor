@@ -6,7 +6,7 @@ The processing is done in batches and in parallel to improve performance.
 Java 8 or higher installed on the system.
 There is an input.txt file in the root folder
 
-##Usage
+## Usage
 To execute the Data Processor, follow the following command-line syntax:
 java -jar data-processor.jar input.txt COMMAND ARGUMENT
 
