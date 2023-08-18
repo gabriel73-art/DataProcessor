@@ -22,10 +22,17 @@ Records starting with "F" indicate a new data format and are used to group peopl
 Records starting with "D" contain information about a person under the previously defined format.
 
 Format and data examples:
-F1 
+
+Formato F1:
+
+F1
+
 D Peter Parker,NEW YORK,12345k
 
+Formato F2:
+
 F2
+
 D Peter Parker ; NEW YORK ; 12345-k
 
 ## Results
