@@ -23,13 +23,13 @@ Records starting with "D" contain information about a person under the previousl
 
 Format and data examples:
 
-Formato F1:
+Formato F1 (data separated by commas and without spaces before and after the commas):
 
 F1
 
 D Peter Parker,NEW YORK,12345k
 
-Formato F2:
+Formato F2 (data separated by semicolons, with spaces before and after the semicolons):
 
 F2
 
