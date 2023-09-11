@@ -8,13 +8,14 @@ There is an input.txt file in the root folder
 
 ## Usage
 To execute the Data Processor, follow the following command-line syntax:
-java -jar data-processor.jar input.txt COMMAND ARGUMENT
-
+**java -jar application.jar input.txt COMMAND ARGUMENT**. You must get inside the "target" folder in the project root directory from the command line.
 Where:
 
-input.txt is the input file containing the records to be processed.
-COMMAND is the search command to perform. It can be "CITY" to search people by city or "ID" to search people by identification.
-ARGUMENT is the value to be used for the search. For example, the name of a city or a specific id.
+**input.txt**: is the input file containing the records to be processed.  
+
+**COMMAND**: is the search command to perform. It can be "CITY" to search people by city or "ID" to search people by identification.  
+
+**ARGUMENT**: is the value to be used for the search. For example, the name of a city or a specific id.
 
 ## Input File Format
 The input file must contain records in different formats. Each line of the file represents a record with the following format: F or D. 
