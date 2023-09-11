@@ -15,7 +15,7 @@ public class DataProcessor {
     private static final int BATCH_SIZE = 8;
 
     public static void main(String[] args) {
-        Scanner scanner = new Scanner(System.in);
+       /* Scanner scanner = new Scanner(System.in);
 
         System.out.print("Ingrese el nombre del archivo de entrada: ");
         String inputFile = scanner.nextLine();
@@ -24,7 +24,15 @@ public class DataProcessor {
         String command = scanner.nextLine();
 
         System.out.print("Ingrese ciudad o id: ");
-        String argument = scanner.nextLine();
+        String argument = scanner.nextLine();*/
+
+        String inputFile = args[0];
+
+
+        String command = args[1];
+
+
+        String argument = String.join(" ", Arrays.copyOfRange(args, 2, args.length));
 
         try (BufferedReader reader = new BufferedReader(new FileReader(inputFile))) {
             ExecutorService executor = Executors.newFixedThreadPool(NUM_THREADS);
