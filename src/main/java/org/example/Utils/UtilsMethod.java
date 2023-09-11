@@ -12,7 +12,7 @@ import java.util.concurrent.Future;
 
 public class  UtilsMethod {
 
-    public static List<String> getPersonByCity(Map<String, List<Person>> batchData, String city) {
+   /* public static List<String> getPersonByCity(Map<String, List<Person>> batchData, String city) {
         List<String> personInCity = new ArrayList<>();
         List<Person> people = batchData.get("F1");
         List<Person> people2 = batchData.get("F2");
@@ -25,9 +25,28 @@ public class  UtilsMethod {
                 personInCity.add(person.getName()+","+person.getId());
         }
         return personInCity;
+    }*/
+
+    public static List<String> getPersonByCity(Map<String, List<Person>> batchData, String city) {
+        List<String> personInCity = new ArrayList<>();
+        ExecutorService executor = Executors.newFixedThreadPool(2); // Dos hilos
+
+        Future<List<String>> future1 = executor.submit(() -> getPersonByCityInBatch(batchData, "F1", city));
+        Future<List<String>> future2 = executor.submit(() -> getPersonByCityInBatch(batchData, "F2", city));
+
+        try {
+            personInCity.addAll(future1.get());
+            personInCity.addAll(future2.get());
+        } catch (InterruptedException | ExecutionException e) {
+            e.printStackTrace();
+        }
+
+        executor.shutdown();
+        return personInCity;
     }
 
-   /* public static List<String> getCitiesById(Map<String, List<Person>> batchData , String id) {
+
+    /* public static List<String> getCitiesById(Map<String, List<Person>> batchData , String id) {
         List<String> personInCity = new ArrayList<>();
         List<Person> people = batchData.get("F1");
         List<Person> people2 = batchData.get("F2");
@@ -84,6 +103,18 @@ public class  UtilsMethod {
                 if(person.getId().equals(id.contains("-")? id: id.substring(0, id.length() - 1) + "-" + id.charAt(id.length() - 1)))
                     personInCity.add(person.getCity());
             }
+
+        return personInCity;
+    }
+
+    private static List<String> getPersonByCityInBatch(Map<String, List<Person>> batchData, String batchKey, String city) {
+        List<String> personInCity = new ArrayList<>();
+        List<Person> people = batchData.get(batchKey);
+
+        for (Person person : people) {
+            if (person.getCity().equalsIgnoreCase(city))
+                personInCity.add(person.getName() + "," + person.getId());
+        }
 
         return personInCity;
     }
