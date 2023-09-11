@@ -8,8 +8,7 @@ There is an input.txt file in the root folder
 
 ## Usage
 To execute the Data Processor, follow the following command-line syntax:
-java -jar data-processor.jar input.txt COMMAND ARGUMENT
-
+java -jar data-processor.jar input.txt COMMAND ARGUMENT. You must get inside the "target" folder in the project root directory from the command line.
 Where:
 
 input.txt is the input file containing the records to be processed.
