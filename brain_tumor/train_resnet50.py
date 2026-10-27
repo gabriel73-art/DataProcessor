@@ -151,23 +151,34 @@ scaler = torch.amp.GradScaler('cuda', enabled=(device.type == 'cuda'))
 
 
 # %% 4. Entrenamiento -------------------------------------------------------
-def evaluate(loader):
+def evaluate(loader, tta=False):
+    """Devuelve (loss, accuracy, preds, labels, probs).
+
+    Con tta=True se promedian las probabilidades de la imagen original y de su
+    volteo horizontal (Test-Time Augmentation). El loss se calcula siempre sobre
+    la imagen original para que sea comparable entre ejecuciones.
+    """
     model.eval()
     loss_sum, correct, total = 0.0, 0, 0
-    all_preds, all_labels = [], []
+    all_preds, all_labels, all_probs = [], [], []
     with torch.no_grad():
         for inputs, labels in loader:
             inputs, labels = inputs.to(device, non_blocking=True), labels.to(device, non_blocking=True)
             # Evaluación en float32 (sin AMP): en fp16 algunos batches daban loss = nan
             outputs = model(inputs)
             loss = criterion(outputs, labels)
+            probs = outputs.softmax(1)
+            if tta:
+                probs = (probs + model(torch.flip(inputs, dims=[3])).softmax(1)) / 2
             loss_sum += loss.item() * inputs.size(0)
-            preds = outputs.argmax(1)
+            preds = probs.argmax(1)
             correct += (preds == labels).sum().item()
             total += labels.size(0)
             all_preds.append(preds.cpu())
             all_labels.append(labels.cpu())
-    return loss_sum / total, correct / total, torch.cat(all_preds), torch.cat(all_labels)
+            all_probs.append(probs.cpu())
+    return (loss_sum / total, correct / total,
+            torch.cat(all_preds), torch.cat(all_labels), torch.cat(all_probs))
 
 
 best_val_acc, best_state, epochs_no_improve = 0.0, None, 0
@@ -198,7 +209,7 @@ for epoch in range(NUM_EPOCHS):
 
     train_loss = running_loss / total_train
     train_acc = correct_train / total_train
-    val_loss, val_acc, _, _ = evaluate(val_loader)
+    val_loss, val_acc, *_ = evaluate(val_loader)
 
     print(f"Época [{epoch+1}/{NUM_EPOCHS}] | "
           f"Train Loss: {train_loss:.4f} - Train Acc: {train_acc*100:.2f}% | "
@@ -216,15 +227,20 @@ for epoch in range(NUM_EPOCHS):
 
 # %% 5. Evaluación final en Test (una sola vez, con el mejor modelo) ---------
 model.load_state_dict(best_state)
-test_loss, test_acc, test_preds, test_labels = evaluate(test_loader)
-print(f"\nMejor Val Acc: {best_val_acc*100:.2f}%")
-print(f"Test Loss: {test_loss:.4f} - Test Acc: {test_acc*100:.2f}%")
+
+# La decisión de usar TTA se toma con validación, no con Test
+_, val_acc_tta, *_ = evaluate(val_loader, tta=True)
+print(f"\nMejor Val Acc: {best_val_acc*100:.2f}% | con TTA: {val_acc_tta*100:.2f}%")
+
+test_loss, test_acc, *_ = evaluate(test_loader)
+_, test_acc_tta, test_preds, test_labels, test_probs = evaluate(test_loader, tta=True)
+print(f"Test Loss: {test_loss:.4f} - Test Acc: {test_acc*100:.2f}% | con TTA: {test_acc_tta*100:.2f}%")
 
 # Matriz de confusión y accuracy por clase
 cm = torch.zeros(num_classes, num_classes, dtype=torch.long)
 for t, p in zip(test_labels, test_preds):
     cm[t, p] += 1
-print("\nMatriz de confusión (filas = real, columnas = predicho):")
+print("\nMatriz de confusión con TTA (filas = real, columnas = predicho):")
 print(classes)
 print(cm.numpy())
 for i, c in enumerate(classes):
@@ -233,3 +249,36 @@ for i, c in enumerate(classes):
 # %% 6. Guardar -------------------------------------------------------------
 torch.save(model.state_dict(), 'brain_tumor_resnet50.pth')
 print("\nModelo guardado exitosamente como 'brain_tumor_resnet50.pth'")
+
+# %% 7. Gliomas del Test mal clasificados ------------------------------------
+import math
+
+import matplotlib.pyplot as plt
+from PIL import Image
+
+glioma_idx = classes.index('glioma')
+# test_loader no baraja, así que la posición i corresponde a test_dataset.samples[i]
+wrong = [i for i in range(len(test_labels))
+         if test_labels[i] == glioma_idx and test_preds[i] != glioma_idx]
+
+print(f"Gliomas mal clasificados: {len(wrong)} de {(test_labels == glioma_idx).sum().item()}")
+for c in range(num_classes):
+    n = sum(1 for i in wrong if test_preds[i] == c)
+    if n:
+        print(f"  -> predichos como {classes[c]}: {n}")
+
+COLS = 8
+rows = max(1, math.ceil(len(wrong) / COLS))
+fig, axes = plt.subplots(rows, COLS, figsize=(COLS * 2.2, rows * 2.6))
+for ax in np.array(axes).ravel():
+    ax.axis('off')
+for ax, i in zip(np.array(axes).ravel(), wrong):
+    path = test_dataset.samples[i][0]
+    pred = test_preds[i].item()
+    ax.imshow(Image.open(path).convert('L'), cmap='gray')
+    ax.set_title(f"{classes[pred]} {test_probs[i, pred]*100:.0f}%\n"
+                 f"glioma {test_probs[i, glioma_idx]*100:.0f}%\n{os.path.basename(path)}",
+                 fontsize=7)
+plt.suptitle("Gliomas reales mal clasificados (predicción y prob. de glioma)")
+plt.tight_layout()
+plt.show()
