@@ -46,6 +46,7 @@ import copy
 import random
 
 import numpy as np
+from tqdm.auto import tqdm
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -175,7 +176,8 @@ for epoch in range(NUM_EPOCHS):
     model.train()
     running_loss, correct_train, total_train = 0.0, 0, 0
 
-    for inputs, labels in train_loader:
+    pbar = tqdm(train_loader, desc=f"Época {epoch+1}/{NUM_EPOCHS}", leave=False)
+    for inputs, labels in pbar:
         inputs, labels = inputs.to(device, non_blocking=True), labels.to(device, non_blocking=True)
         optimizer.zero_grad(set_to_none=True)
 
@@ -191,6 +193,8 @@ for epoch in range(NUM_EPOCHS):
         running_loss += loss.item() * inputs.size(0)
         correct_train += (outputs.argmax(1) == labels).sum().item()
         total_train += labels.size(0)
+        pbar.set_postfix(loss=f"{running_loss/total_train:.4f}",
+                         acc=f"{correct_train/total_train*100:.2f}%")
 
     train_loss = running_loss / total_train
     train_acc = correct_train / total_train
@@ -198,7 +202,7 @@ for epoch in range(NUM_EPOCHS):
 
     print(f"Época [{epoch+1}/{NUM_EPOCHS}] | "
           f"Train Loss: {train_loss:.4f} - Train Acc: {train_acc*100:.2f}% | "
-          f"Val Loss: {val_loss:.4f} - Val Acc: {val_acc*100:.2f}%")
+          f"Val Loss: {val_loss:.4f} - Val Acc: {val_acc*100:.2f}%", flush=True)
 
     if val_acc > best_val_acc:
         best_val_acc = val_acc
