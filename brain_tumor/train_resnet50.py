@@ -103,15 +103,15 @@ train_dataset = Subset(full_train_aug, train_idx)
 val_dataset = Subset(full_train_eval, val_idx)
 
 BATCH_SIZE = 32
-NUM_WORKERS = min(4, os.cpu_count() or 1)
+NUM_WORKERS = min(2, os.cpu_count() or 1)
 pin = device.type == 'cuda'
 
 train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True,
-                          num_workers=NUM_WORKERS, pin_memory=pin, drop_last=True)
+                          num_workers=NUM_WORKERS, pin_memory=pin, persistent_workers=NUM_WORKERS > 0, drop_last=True)
 val_loader = DataLoader(val_dataset, batch_size=64, shuffle=False,
-                        num_workers=NUM_WORKERS, pin_memory=pin)
+                        num_workers=NUM_WORKERS, pin_memory=pin, persistent_workers=NUM_WORKERS > 0)
 test_loader = DataLoader(test_dataset, batch_size=64, shuffle=False,
-                         num_workers=NUM_WORKERS, pin_memory=pin)
+                         num_workers=NUM_WORKERS, pin_memory=pin, persistent_workers=NUM_WORKERS > 0)
 
 classes = full_train_aug.classes
 num_classes = len(classes)
@@ -147,7 +147,7 @@ scheduler = optim.lr_scheduler.OneCycleLR(
     optimizer, max_lr=max_lrs, epochs=NUM_EPOCHS,
     steps_per_epoch=len(train_loader), pct_start=0.15,
 )
-scaler = torch.cuda.amp.GradScaler(enabled=(device.type == 'cuda'))
+scaler = torch.amp.GradScaler('cuda', enabled=(device.type == 'cuda'))
 
 
 # %% 4. Entrenamiento -------------------------------------------------------
@@ -158,9 +158,9 @@ def evaluate(loader):
     with torch.no_grad():
         for inputs, labels in loader:
             inputs, labels = inputs.to(device, non_blocking=True), labels.to(device, non_blocking=True)
-            with torch.autocast(device_type=device.type, enabled=(device.type == 'cuda')):
-                outputs = model(inputs)
-                loss = criterion(outputs, labels)
+            # Evaluación en float32 (sin AMP): en fp16 algunos batches daban loss = nan
+            outputs = model(inputs)
+            loss = criterion(outputs, labels)
             loss_sum += loss.item() * inputs.size(0)
             preds = outputs.argmax(1)
             correct += (preds == labels).sum().item()
@@ -183,7 +183,7 @@ for epoch in range(NUM_EPOCHS):
 
         with torch.autocast(device_type=device.type, enabled=(device.type == 'cuda')):
             outputs = model(inputs)
-            loss = criterion(outputs, labels)
+        loss = criterion(outputs.float(), labels)
 
         scaler.scale(loss).backward()
         scaler.step(optimizer)
