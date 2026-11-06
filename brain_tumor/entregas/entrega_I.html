@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Entrega I – Proyecto final MEMAD</title>
+<style>
+  @page { size: Letter; margin: 2cm 2cm 2cm 2cm; }
+  body { font-family: "Liberation Serif", "Times New Roman", serif; font-size: 11pt; line-height: 1.4; color: #111; }
+  h1 { font-size: 17pt; text-align: center; margin: 0 0 4pt; }
+  h2 { font-size: 13pt; border-bottom: 1px solid #444; padding-bottom: 2pt; margin-top: 18pt; }
+  h2, h3 { break-after: avoid; page-break-after: avoid; }
+  h3 { font-size: 11.5pt; margin: 12pt 0 4pt; }
+  thead { display: table-header-group; }
+  .sub { text-align: center; margin: 0; }
+  .meta { text-align: center; margin: 8pt 0 14pt; font-size: 10.5pt; }
+  table { border-collapse: collapse; width: 100%; margin: 6pt 0 10pt; font-size: 9.5pt; page-break-inside: auto; }
+  tr { page-break-inside: avoid; }
+  th, td { border: 1px solid #888; padding: 3pt 5pt; vertical-align: top; text-align: left; }
+  th { background: #e8e8e8; }
+  td.c, th.c { text-align: center; }
+  ul { margin: 2pt 0 4pt; padding-left: 16pt; }
+  li { margin: 1pt 0; }
+  a { color: #0645ad; text-decoration: none; word-break: break-all; }
+  figure { margin: 8pt 0; text-align: center; page-break-inside: avoid; }
+  figure img { width: 100%; }
+  figcaption { font-size: 9.5pt; color: #333; margin-top: 2pt; }
+  .eq { break-inside: avoid; page-break-inside: avoid; font-family: "DejaVu Sans Mono", monospace; font-size: 9.5pt; background: #f4f4f4; padding: 4pt 6pt; margin: 4pt 0; }
+  .nota { font-size: 9.5pt; color: #333; }
+  .pb { page-break-before: always; }
+  code { font-family: "DejaVu Sans Mono", monospace; font-size: 9pt; }
+</style>
+</head>
+<body>
+
+<h1>Estudio comparativo de algoritmos de optimización para el entrenamiento de redes neuronales convolucionales en la clasificación de tumores cerebrales en MRI</h1>
+<p class="sub"><b>Proyecto final – MEMAD · Entrega I</b></p>
+<p class="meta">
+  Alumno: [Nombre del alumno] · Código: [Código] <br>
+  Profesor: Dr. E. Alejandro Guerrero Arroyo · CUCEI, Universidad de Guadalajara <br>
+  Fecha de entrega: 9 de noviembre de 2026
+</p>
+
+<h2>1. Planteamiento</h2>
+<p>
+El proyecto usa la clasificación de resonancias magnéticas cerebrales en cuatro clases
+(glioma, meningioma, tumor de hipófisis y sin tumor) como <b>caso de estudio</b> para analizar
+algoritmos de optimización. El foco no es obtener la mayor exactitud posible, sino comparar
+cómo distintos algoritmos minimizan la función de pérdida: velocidad de convergencia,
+estabilidad, sensibilidad a la tasa de aprendizaje y capacidad de generalización.
+</p>
+<h3>Objetivos</h3>
+<ul>
+  <li><b>O1.</b> Implementar desde cero optimizadores de primer orden (SGD, momento, Nesterov, Adagrad, RMSprop, Adam, AdamW) y validarlos numéricamente contra PyTorch.</li>
+  <li><b>O2.</b> Comparar estos optimizadores entrenando una CNN <b>desde cero</b> (sin pesos preentrenados), con un protocolo justo: mismo presupuesto de épocas, búsqueda de tasa de aprendizaje por algoritmo y varias semillas.</li>
+  <li><b>O3.</b> Estudiar un problema <b>convexo</b> (regresión logística multiclase sobre características extraídas de la red) y comparar métodos de primer y segundo orden (descenso de gradiente, gradiente conjugado, Newton, L-BFGS), contrastando las tasas de convergencia teóricas con las observadas.</li>
+  <li><b>O4.</b> Analizar la programación de la tasa de aprendizaje y la optimización de hiperparámetros como problema de caja negra (búsqueda aleatoria frente a optimización bayesiana).</li>
+  <li><b>O5.</b> Integrar el mejor modelo en una aplicación web de demostración.</li>
+</ul>
+
+<h2 class="pb">2. Cronograma de metas y entregables</h2>
+<table>
+  <thead><tr><th style="width:11%">Entrega</th><th style="width:47%">Metas de la semana</th><th>Entregables</th></tr></thead>
+  <tr>
+    <td><b>I</b><br>9 nov</td>
+    <td><ul>
+      <li>Planteamiento, objetivos y cronograma.</li>
+      <li>Análisis del dataset y partición train / validación / test.</li>
+      <li>Modelo de referencia (ResNet-50 con <i>transfer learning</i>).</li>
+      <li>Implementación propia de 6 optimizadores y validación contra <code>torch.optim</code>.</li>
+      <li>Primer experimento: trayectorias en funciones de prueba 2D (cuadrática mal condicionada y Rosenbrock).</li>
+    </ul></td>
+    <td><ul>
+      <li>Este PDF (cronograma, ingredientes y avance).</li>
+      <li><code>optimizadores.py</code>, <code>test_optimizadores.py</code>, <code>trayectorias_2d.py</code>.</li>
+      <li>Figuras y tablas de resultados.</li>
+      <li><code>train_resnet50.py</code> (modelo de referencia).</li>
+    </ul></td>
+  </tr>
+  <tr>
+    <td><b>II</b><br>16 nov</td>
+    <td><ul>
+      <li>Marco de experimentación común: misma red (ResNet-18 sin preentrenar), mismos datos, registro automático de métricas.</li>
+      <li><i>LR range test</i> (Smith, 2017) para elegir la tasa de aprendizaje de cada optimizador.</li>
+      <li>Comparación de los 7 optimizadores × 3 semillas.</li>
+    </ul></td>
+    <td><ul>
+      <li>Código del marco de experimentos.</li>
+      <li>Curvas de pérdida y exactitud por época.</li>
+      <li>Tabla media ± desviación estándar (validación y test), tiempo por época.</li>
+    </ul></td>
+  </tr>
+  <tr>
+    <td><b>III</b><br>23 nov</td>
+    <td><ul>
+      <li>Extracción de características con la red congelada (con reducción de dimensión por PCA).</li>
+      <li>Regresión logística multiclase con regularización L2 (problema convexo).</li>
+      <li>Implementación y comparación de descenso de gradiente, gradiente conjugado no lineal, Newton y L-BFGS.</li>
+      <li>Verificación de tasas de convergencia (lineal, superlineal, cuadrática).</li>
+    </ul></td>
+    <td><ul>
+      <li>Código de los métodos.</li>
+      <li>Gráficas de ‖∇f‖ y f − f* por iteración y por tiempo.</li>
+      <li>Discusión teoría vs. práctica.</li>
+    </ul></td>
+  </tr>
+  <tr>
+    <td><b>IV</b><br>30 nov</td>
+    <td><ul>
+      <li>Programación de la tasa de aprendizaje: constante, escalonada, coseno y OneCycle.</li>
+      <li>Optimización de hiperparámetros: búsqueda aleatoria vs. bayesiana (TPE, Optuna) con el mismo número de pruebas.</li>
+      <li>Análisis de errores clínicos (falsos negativos de glioma).</li>
+    </ul></td>
+    <td><ul>
+      <li>Código y resultados de ambos estudios.</li>
+      <li>Curvas de "mejor valor encontrado vs. número de pruebas".</li>
+    </ul></td>
+  </tr>
+  <tr>
+    <td><b>V</b><br>7 dic</td>
+    <td><ul>
+      <li>Entrenamiento del modelo final con la mejor configuración.</li>
+      <li>Aplicación web de demostración (Gradio).</li>
+      <li>Informe final y conclusiones.</li>
+    </ul></td>
+    <td><ul>
+      <li>Informe final (PDF) y presentación.</li>
+      <li>Código completo y aplicación web.</li>
+    </ul></td>
+  </tr>
+</table>
+<p class="nota">Si el tiempo lo permite, se añadirá un análisis del paisaje de la función de pérdida y del optimizador SAM (Foret et al., 2021) en la semana IV.</p>
+
+<h2>3. Ingredientes del proyecto</h2>
+<h3>Datos</h3>
+<table>
+  <tr><th style="width:30%">Recurso</th><th>Enlace</th><th style="width:30%">Uso</th></tr>
+  <tr><td>Brain Tumor MRI Dataset (M. Nickparvar)</td><td><a href="https://www.kaggle.com/datasets/masoudnickparvar/brain-tumor-mri-dataset">kaggle.com/datasets/masoudnickparvar/brain-tumor-mri-dataset</a></td><td>Dataset principal: 7 200 imágenes, 4 clases.</td></tr>
+  <tr><td>Fuente original: figshare (Cheng et al.)</td><td><a href="https://figshare.com/articles/dataset/brain_tumor_dataset/1512427">figshare.com/articles/dataset/brain_tumor_dataset/1512427</a></td><td>Incluido en el dataset principal.</td></tr>
+  <tr><td>Fuente original: SARTAJ</td><td><a href="https://www.kaggle.com/datasets/sartajbhuvaji/brain-tumor-classification-mri">kaggle.com/datasets/sartajbhuvaji/brain-tumor-classification-mri</a></td><td>Incluido en el dataset principal.</td></tr>
+  <tr><td>Fuente original: Br35H</td><td><a href="https://www.kaggle.com/datasets/ahmedhamada0/brain-tumor-detection">kaggle.com/datasets/ahmedhamada0/brain-tumor-detection</a></td><td>Imágenes sin tumor del dataset principal.</td></tr>
+</table>
+
+<h3>Modelos</h3>
+<table>
+  <tr><th style="width:30%">Recurso</th><th>Enlace</th><th style="width:30%">Uso</th></tr>
+  <tr><td>ResNet-50 preentrenada en ImageNet (torchvision, pesos <code>IMAGENET1K_V2</code>)</td><td><a href="https://pytorch.org/vision/stable/models/generated/torchvision.models.resnet50.html">pytorch.org/vision/…/torchvision.models.resnet50.html</a><br>Archivo: <a href="https://download.pytorch.org/models/resnet50-11ad3fa6.pth">download.pytorch.org/models/resnet50-11ad3fa6.pth</a></td><td>Modelo de referencia y extractor de características (semana III).</td></tr>
+  <tr><td>ResNet-18 (sin pesos preentrenados)</td><td><a href="https://pytorch.org/vision/stable/models/generated/torchvision.models.resnet18.html">pytorch.org/vision/…/torchvision.models.resnet18.html</a></td><td>Red entrenada desde cero para comparar optimizadores.</td></tr>
+</table>
+
+<h3>Software y archivos</h3>
+<table>
+  <tr><th style="width:30%">Recurso</th><th>Enlace</th><th style="width:30%">Uso</th></tr>
+  <tr><td>Código del proyecto</td><td><a href="https://github.com/gabriel73-art/DataProcessor/tree/claude/brain-tumor-accuracy-improvement-garoej/brain_tumor">github.com/gabriel73-art/DataProcessor (carpeta brain_tumor)</a></td><td>Todos los scripts y resultados.</td></tr>
+  <tr><td>PyTorch y torchvision</td><td><a href="https://pytorch.org">pytorch.org</a></td><td>Redes, diferenciación automática, optimizadores de referencia.</td></tr>
+  <tr><td>Google Colab (GPU)</td><td><a href="https://colab.research.google.com">colab.research.google.com</a></td><td>Entrenamiento.</td></tr>
+  <tr><td>SciPy</td><td><a href="https://scipy.org">scipy.org</a></td><td>Referencia para L-BFGS y gradiente conjugado (semana III).</td></tr>
+  <tr><td>Optuna</td><td><a href="https://optuna.org">optuna.org</a></td><td>Optimización bayesiana de hiperparámetros (semana IV).</td></tr>
+  <tr><td>Gradio</td><td><a href="https://www.gradio.app">gradio.app</a></td><td>Aplicación web (semana V).</td></tr>
+</table>
+
+<h3>Referencias bibliográficas</h3>
+<ul class="nota">
+  <li>Kingma, D. P. &amp; Ba, J. (2015). Adam: A Method for Stochastic Optimization. ICLR. <a href="https://arxiv.org/abs/1412.6980">arxiv.org/abs/1412.6980</a></li>
+  <li>Loshchilov, I. &amp; Hutter, F. (2019). Decoupled Weight Decay Regularization. ICLR. <a href="https://arxiv.org/abs/1711.05101">arxiv.org/abs/1711.05101</a></li>
+  <li>Duchi, J., Hazan, E. &amp; Singer, Y. (2011). Adaptive Subgradient Methods for Online Learning and Stochastic Optimization. JMLR 12. <a href="https://jmlr.org/papers/v12/duchi11a.html">jmlr.org/papers/v12/duchi11a.html</a></li>
+  <li>Sutskever, I., Martens, J., Dahl, G. &amp; Hinton, G. (2013). On the importance of initialization and momentum in deep learning. ICML. <a href="https://proceedings.mlr.press/v28/sutskever13.html">proceedings.mlr.press/v28/sutskever13.html</a></li>
+  <li>Tieleman, T. &amp; Hinton, G. (2012). Lecture 6.5 – RMSprop. Neural Networks for Machine Learning, Universidad de Toronto. <a href="http://www.cs.toronto.edu/~tijmen/csc321/slides/lecture_slides_lec6.pdf">cs.toronto.edu/~tijmen/csc321/slides/lecture_slides_lec6.pdf</a></li>
+  <li>He, K., Zhang, X., Ren, S. &amp; Sun, J. (2016). Deep Residual Learning for Image Recognition. CVPR. <a href="https://arxiv.org/abs/1512.03385">arxiv.org/abs/1512.03385</a></li>
+  <li>Smith, L. N. (2017). Cyclical Learning Rates for Training Neural Networks. WACV. <a href="https://arxiv.org/abs/1506.01186">arxiv.org/abs/1506.01186</a></li>
+  <li>Smith, L. N. &amp; Topin, N. (2019). Super-Convergence. <a href="https://arxiv.org/abs/1708.07120">arxiv.org/abs/1708.07120</a></li>
+  <li>Foret, P. et al. (2021). Sharpness-Aware Minimization for Efficiently Improving Generalization. ICLR. <a href="https://arxiv.org/abs/2010.01412">arxiv.org/abs/2010.01412</a></li>
+  <li>Nocedal, J. &amp; Wright, S. J. (2006). <i>Numerical Optimization</i>, 2.ª ed. Springer.</li>
+</ul>
+
+<h2 class="pb">4. Avance de la semana I</h2>
+
+<h3>4.1 Dataset y partición</h3>
+<p>Las clases están equilibradas. Del conjunto <i>Training</i> se separa un 15 % estratificado (semilla fija) como validación; el conjunto <i>Testing</i> solo se usa una vez, al final.</p>
+<table>
+  <tr><th>Conjunto</th><th class="c">Por clase</th><th class="c">Total</th><th>Uso</th></tr>
+  <tr><td>Entrenamiento</td><td class="c">1 190</td><td class="c">4 760</td><td>Ajuste de los pesos.</td></tr>
+  <tr><td>Validación</td><td class="c">210</td><td class="c">840</td><td>Selección del mejor modelo, <i>early stopping</i> e hiperparámetros.</td></tr>
+  <tr><td>Prueba</td><td class="c">400</td><td class="c">1 600</td><td>Evaluación final.</td></tr>
+</table>
+
+<h3>4.2 Modelo de referencia (ResNet-50 con <i>transfer learning</i>)</h3>
+<p>ResNet-50 preentrenada en ImageNet y ajustada completa, con tasas de aprendizaje
+discriminativas por bloque (1e-5 a 1e-3), AdamW, <i>label smoothing</i> 0.1, programación
+OneCycle y 20 épocas en GPU. Sirve como cota de referencia para lo que se logra con
+una red preentrenada.</p>
+<table>
+  <tr><th>Métrica</th><th class="c">Valor</th></tr>
+  <tr><td>Mejor exactitud en validación (época 18)</td><td class="c">99.64 %</td></tr>
+  <tr><td>Exactitud en prueba</td><td class="c"><b>96.00 %</b></td></tr>
+</table>
+<table>
+  <tr><th>Real \ Predicho</th><th class="c">glioma</th><th class="c">meningioma</th><th class="c">sin tumor</th><th class="c">hipófisis</th><th class="c">Exactitud por clase</th></tr>
+  <tr><td>glioma</td><td class="c">338</td><td class="c">32</td><td class="c">29</td><td class="c">1</td><td class="c">84.50 %</td></tr>
+  <tr><td>meningioma</td><td class="c">0</td><td class="c">398</td><td class="c">0</td><td class="c">2</td><td class="c">99.50 %</td></tr>
+  <tr><td>sin tumor</td><td class="c">0</td><td class="c">0</td><td class="c">400</td><td class="c">0</td><td class="c">100.00 %</td></tr>
+  <tr><td>hipófisis</td><td class="c">0</td><td class="c">0</td><td class="c">0</td><td class="c">400</td><td class="c">100.00 %</td></tr>
+</table>
+<p>Observaciones: (1) no hay sobreajuste clásico, ya que las curvas de entrenamiento y validación
+avanzan juntas; (2) 62 de los 64 errores son gliomas, lo que sugiere una diferencia de
+distribución entre los gliomas de <i>Training</i> y de <i>Testing</i>; (3) los 29 gliomas clasificados
+como "sin tumor" son falsos negativos, el error clínicamente más grave, y se analizarán en la semana IV.</p>
+
+<h3>4.3 Implementación propia de optimizadores</h3>
+<p>Se implementaron como subclases de <code>torch.optim.Optimizer</code> (archivo <code>optimizadores.py</code>), siguiendo las ecuaciones originales:</p>
+<div class="eq">
+SGD:       θ ← θ − η g<br>
+Momento:   v ← μ v + g ;  θ ← θ − η v<br>
+Nesterov:  v ← μ v + g ;  θ ← θ − η (g + μ v)<br>
+Adagrad:   G ← G + g² ;  θ ← θ − η g / (√G + ε)<br>
+RMSprop:   s ← α s + (1−α) g² ;  θ ← θ − η g / (√s + ε)<br>
+Adam:      m ← β₁m + (1−β₁)g ; v ← β₂v + (1−β₂)g² ; m̂ = m/(1−β₁ᵗ) ; v̂ = v/(1−β₂ᵗ) ; θ ← θ − η m̂ / (√v̂ + ε)<br>
+AdamW:     θ ← θ (1 − ηλ) antes del paso de Adam (weight decay desacoplado)
+</div>
+<p><b>Validación.</b> Para cada algoritmo se entrenó la misma CNN pequeña (misma inicialización
+y mismos datos) durante 200 pasos con nuestra implementación y con la de PyTorch, en doble precisión.</p>
+<table>
+  <tr><th>Optimizador</th><th class="c">máx |θ<sub>propio</sub> − θ<sub>PyTorch</sub>|</th><th class="c">Pérdida inicial → final</th><th class="c">Resultado</th></tr>
+  <tr><td>SGD</td><td class="c">0</td><td class="c">1.5138 → 1.3860</td><td class="c">OK</td></tr>
+  <tr><td>SGD + momento</td><td class="c">0</td><td class="c">1.5138 → 1.3867</td><td class="c">OK</td></tr>
+  <tr><td>Nesterov</td><td class="c">1.8 × 10⁻¹⁶</td><td class="c">1.5138 → 1.3860</td><td class="c">OK</td></tr>
+  <tr><td>SGD + momento + L2</td><td class="c">1.1 × 10⁻¹⁶</td><td class="c">1.5138 → 1.3866</td><td class="c">OK</td></tr>
+  <tr><td>Adagrad</td><td class="c">0</td><td class="c">1.5138 → 1.3824</td><td class="c">OK</td></tr>
+  <tr><td>RMSprop</td><td class="c">0</td><td class="c">1.5138 → 1.3878</td><td class="c">OK</td></tr>
+  <tr><td>Adam</td><td class="c">1.1 × 10⁻¹⁶</td><td class="c">1.5138 → 1.3907</td><td class="c">OK</td></tr>
+  <tr><td>Adam + L2</td><td class="c">5.6 × 10⁻¹⁷</td><td class="c">1.5138 → 1.3926</td><td class="c">OK</td></tr>
+  <tr><td>AdamW</td><td class="c">5.6 × 10⁻¹⁷</td><td class="c">1.5138 → 1.3908</td><td class="c">OK</td></tr>
+</table>
+<p>Todas las diferencias están en el orden del error de redondeo de doble precisión (≈10⁻¹⁶).
+Como control, al eliminar a propósito la corrección de sesgo de Adam, la prueba falla con
+diferencias del orden de 10⁻², lo que confirma que la validación detecta errores reales.
+(La pérdida apenas baja porque los datos de la prueba son aleatorios; el objetivo aquí es solo
+verificar la equivalencia numérica.)</p>
+
+<h3>4.4 Experimento: funciones de prueba en 2D</h3>
+<p>Antes de pasar a la red neuronal, se compararon los optimizadores en dos funciones clásicas:
+una <b>cuadrática mal condicionada</b> (número de condición κ = 20, rotada 30° para que los ejes
+no coincidan con las direcciones principales) y la <b>función de Rosenbrock</b> (valle curvo y
+estrecho, mínimo en (1, 1)). Para cada optimizador, la tasa de aprendizaje se eligió con una
+búsqueda en rejilla logarítmica de 25 valores entre 10⁻⁵ y 10, quedándose con la que daba el
+menor valor final de f. Momento y Nesterov usan μ = 0.9 y Adam los valores por defecto.</p>
+
+<figure>
+  <img src="../semana1/resultados/trayectorias_cuadratica.png">
+  <figcaption>Figura 1. Cuadrática rotada (κ = 20), 200 iteraciones: trayectorias (izq.) y f(w) por iteración en escala logarítmica (der.).</figcaption>
+</figure>
+<figure>
+  <img src="../semana1/resultados/trayectorias_rosenbrock.png">
+  <figcaption>Figura 2. Función de Rosenbrock desde (−1.5, 2), 3 000 iteraciones.</figcaption>
+</figure>
+
+<table>
+  <tr><th rowspan="2">Optimizador</th><th colspan="2" class="c">Cuadrática (200 it.)</th><th colspan="2" class="c">Rosenbrock (3 000 it.)</th></tr>
+  <tr><th class="c">η elegida</th><th class="c">Iter. hasta ‖w − w*‖ &lt; 10⁻³</th><th class="c">η elegida</th><th class="c">Iter. hasta ‖w − w*‖ &lt; 10⁻³</th></tr>
+  <tr><td>GD</td><td class="c">5.6 × 10⁻²</td><td class="c">132</td><td class="c">1.8 × 10⁻³</td><td class="c">no alcanza (dist. 0.12)</td></tr>
+  <tr><td>Momento (0.9)</td><td class="c">1.8 × 10⁻²</td><td class="c">139</td><td class="c">1.8 × 10⁻³</td><td class="c"><b>858</b></td></tr>
+  <tr><td>Nesterov (0.9)</td><td class="c">5.6 × 10⁻²</td><td class="c"><b>47</b></td><td class="c">1.0 × 10⁻³</td><td class="c">1 573</td></tr>
+  <tr><td>Adagrad</td><td class="c">5.6</td><td class="c">78</td><td class="c">1.8</td><td class="c">no alcanza (dist. 0.036)</td></tr>
+  <tr><td>RMSprop</td><td class="c">5.6</td><td class="c">82</td><td class="c">3.2 × 10⁻³</td><td class="c">no alcanza (dist. 0.054)</td></tr>
+  <tr><td>Adam</td><td class="c">5.6</td><td class="c">136</td><td class="c">5.6 × 10⁻²</td><td class="c">1 390</td></tr>
+</table>
+
+<p><b>Observaciones preliminares.</b></p>
+<ul>
+  <li>En la cuadrática, <b>Nesterov</b> es el más rápido. El momento clásico con μ = 0.9 resulta
+  <i>más lento</i> que GD y oscila: para κ = 20 el valor teórico óptimo del momento (heavy ball)
+  es μ* = ((√κ − 1)/(√κ + 1))² ≈ 0.40, así que μ = 0.9 es demasiado alto. Esto muestra que el
+  momento por sí solo no garantiza aceleración si no se ajusta al condicionamiento del problema.</li>
+  <li>En Rosenbrock, los métodos con momento (momento clásico, Adam y Nesterov) son los únicos que
+  llegan al mínimo, porque acumulan velocidad a lo largo del valle. GD, Adagrad y RMSprop avanzan
+  muy despacio por el fondo del valle; Adagrad además se frena porque su acumulador G solo crece.</li>
+  <li>Estas son funciones de juguete, deterministas y desde un único punto de partida, así que las
+  conclusiones <b>no se trasladan directamente</b> a una red neuronal con gradientes estocásticos.
+  Comprobarlo es justamente el objetivo de la semana II.</li>
+</ul>
+
+<h3>4.5 Archivos entregados</h3>
+<table>
+  <tr><th style="width:42%">Archivo</th><th>Contenido</th></tr>
+  <tr><td><code>semana1/optimizadores.py</code></td><td>Implementación propia de SGD, momento, Nesterov, Adagrad, RMSprop, Adam y AdamW.</td></tr>
+  <tr><td><code>semana1/test_optimizadores.py</code></td><td>Validación numérica contra <code>torch.optim</code>.</td></tr>
+  <tr><td><code>semana1/trayectorias_2d.py</code></td><td>Experimento en funciones de prueba 2D.</td></tr>
+  <tr><td><code>semana1/resultados/</code></td><td>Figuras 1 y 2 y tablas CSV de resultados.</td></tr>
+  <tr><td><code>train_resnet50.py</code></td><td>Entrenamiento del modelo de referencia.</td></tr>
+  <tr><td><code>app/</code></td><td>Prototipo de la aplicación web (se completará en la semana V).</td></tr>
+</table>
+
+</body>
+</html>
