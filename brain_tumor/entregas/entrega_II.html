@@ -172,27 +172,12 @@ zona donde el entrenamiento empieza a volverse inestable.</p>
   porque cambian la arquitectura, la resolución y el presupuesto.</li>
 </ul>
 
-<h2>6. Conclusión y siguientes pasos</h2>
+<h2>6. Conclusión</h2>
 <p>Entrenando desde cero, el optimizador marca diferencias grandes: 15.7 puntos en prueba entre el
 mejor (Adagrad, 91.4 %) y el peor (SGD, 75.7 %). Los métodos con momento o con paso adaptativo superan
 claramente a SGD sin momento, y el análisis del paso efectivo del momento explica buena parte de esa
 diferencia. Dentro del grupo de cabeza, las diferencias son del orden de la variabilidad entre semillas.</p>
-<ul>
-  <li><b>Semana III:</b> caso convexo (regresión logística sobre características extraídas), comparando
-  descenso de gradiente, gradiente conjugado, Newton y L-BFGS con sus tasas de convergencia teóricas.</li>
-  <li><b>Semana IV:</b> programación de la tasa de aprendizaje (escalonada, coseno, OneCycle), para
-  reducir las oscilaciones observadas en validación, y optimización de hiperparámetros.</li>
-</ul>
 
-<h3>Referencias</h3>
-<ul class="nota">
-  <li>Smith, L. N. (2017). Cyclical Learning Rates for Training Neural Networks. WACV. arXiv:1506.01186.</li>
-  <li>He, K., Zhang, X., Ren, S. &amp; Sun, J. (2016). Deep Residual Learning for Image Recognition. CVPR. arXiv:1512.03385.</li>
-  <li>Sutskever, I., Martens, J., Dahl, G. &amp; Hinton, G. (2013). On the importance of initialization and momentum in deep learning. ICML.</li>
-  <li>Duchi, J., Hazan, E. &amp; Singer, Y. (2011). Adaptive Subgradient Methods for Online Learning and Stochastic Optimization. JMLR 12.</li>
-  <li>Kingma, D. P. &amp; Ba, J. (2015). Adam: A Method for Stochastic Optimization. ICLR. arXiv:1412.6980.</li>
-  <li>Loshchilov, I. &amp; Hutter, F. (2019). Decoupled Weight Decay Regularization. ICLR. arXiv:1711.05101.</li>
-</ul>
 
 </body>
 </html>
