@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Entrega II – Proyecto final MEMAD</title>
+<style>
+  @page { size: Letter; margin: 2cm 2cm 2cm 2cm; }
+  body { font-family: "Liberation Serif", "Times New Roman", serif; font-size: 11pt; line-height: 1.4; color: #111; }
+  h1 { font-size: 17pt; text-align: center; margin: 0 0 4pt; }
+  h2 { font-size: 13pt; border-bottom: 1px solid #444; padding-bottom: 2pt; margin-top: 18pt; }
+  h2, h3 { break-after: avoid; page-break-after: avoid; }
+  h3 { font-size: 11.5pt; margin: 12pt 0 4pt; }
+  thead { display: table-header-group; }
+  .sub { text-align: center; margin: 0; }
+  .meta { text-align: center; margin: 8pt 0 14pt; font-size: 10.5pt; }
+  table { border-collapse: collapse; width: 100%; margin: 6pt 0 10pt; font-size: 9.5pt; page-break-inside: auto; }
+  tr { page-break-inside: avoid; }
+  th, td { border: 1px solid #888; padding: 3pt 5pt; vertical-align: top; text-align: left; }
+  th { background: #e8e8e8; }
+  td.c, th.c { text-align: center; }
+  ul, ol { margin: 2pt 0 4pt; padding-left: 16pt; }
+  li { margin: 2pt 0; }
+  figure { margin: 8pt 0; text-align: center; page-break-inside: avoid; }
+  figure img { width: 100%; }
+  figcaption { font-size: 9.5pt; color: #333; margin-top: 2pt; }
+  .eq { break-inside: avoid; page-break-inside: avoid; font-family: "DejaVu Sans Mono", monospace; font-size: 9.5pt; background: #f4f4f4; padding: 4pt 6pt; margin: 4pt 0; }
+  .nota { font-size: 9.5pt; color: #333; }
+  .pb { page-break-before: always; }
+  code { font-family: "DejaVu Sans Mono", monospace; font-size: 9pt; }
+  .best { font-weight: bold; }
+  table.res { page-break-inside: avoid; break-inside: avoid; font-size: 9pt; }
+  table.res td.c { white-space: nowrap; }
+  table.res th { font-size: 8.5pt; }
+</style>
+</head>
+<body>
+
+<h1>Estudio comparativo de algoritmos de optimización para el entrenamiento de redes neuronales convolucionales en la clasificación de tumores cerebrales en MRI</h1>
+<p class="sub"><b>Proyecto final – MEMAD · Entrega II</b></p>
+<p class="meta">
+  Alumno: Gabriel Monteagudo · Código: 326056195 <br>
+  CUCEI, Universidad de Guadalajara <br>
+  Fecha de entrega: 16 de noviembre de 2026
+</p>
+
+<h2>1. Objetivo de la semana</h2>
+<p>Comparar los siete optimizadores implementados y validados en la semana I (SGD, momento,
+Nesterov, Adagrad, RMSprop, Adam y AdamW) entrenando la misma red convolucional <b>desde cero</b>,
+sin pesos preentrenados, bajo un protocolo común. Sin preentrenamiento todo el trabajo de ajuste
+recae en el optimizador, así que las diferencias entre algoritmos son más visibles que con
+<i>transfer learning</i>.</p>
+
+<h2>2. Protocolo experimental</h2>
+<table>
+  <tr><th style="width:32%">Elemento</th><th>Valor</th></tr>
+  <tr><td>Red</td><td>ResNet-18 sin preentrenar (11.17 M parámetros), entrada de 1 canal (escala de grises)</td></tr>
+  <tr><td>Imágenes</td><td>128 × 128, normalizadas con la media y desviación del conjunto de entrenamiento</td></tr>
+  <tr><td>Partición</td><td>La misma de la semana I: 4 760 entrenamiento / 840 validación / 1 600 prueba</td></tr>
+  <tr><td>Aumento de datos</td><td>Volteo horizontal y desplazamiento aleatorio de ±8 píxeles</td></tr>
+  <tr><td>Función de pérdida</td><td>Entropía cruzada</td></tr>
+  <tr><td>Presupuesto</td><td>15 épocas, lotes de 64, tasa de aprendizaje <b>constante</b> (sin programación)</td></tr>
+  <tr><td>Hiperparámetros</td><td>Momento y Nesterov con μ = 0.9; Adam y AdamW con β = (0.9, 0.999); AdamW con <i>weight decay</i> desacoplado de 10⁻²; el resto sin <i>weight decay</i></td></tr>
+  <tr><td>Tasa de aprendizaje</td><td>Elegida por separado para cada optimizador con el <i>LR range test</i> (sección 3)</td></tr>
+  <tr><td>Repeticiones</td><td>3 semillas por optimizador (21 entrenamientos, 315 épocas, 11.6 min de entrenamiento en GPU)</td></tr>
+  <tr><td>Selección del modelo</td><td>Mejor época según validación; el conjunto de prueba se evalúa una sola vez, con ese modelo</td></tr>
+</table>
+<p class="nota">Se usaron <b>nuestras implementaciones</b> de los optimizadores (archivo <code>optimizadores.py</code> de la semana I, sin cambios).</p>
+
+<h2>3. Selección de la tasa de aprendizaje: <i>LR range test</i></h2>
+<p>Cada optimizador requiere una escala de tasa de aprendizaje distinta, de modo que usar la misma η
+para todos sería injusto. Siguiendo a Smith (2017), se entrenaron 200 iteraciones aumentando η
+exponencialmente de 10⁻⁶ a 10 y se registró la pérdida suavizada. Se tomó η<sub>mín</sub> como la tasa
+con la menor pérdida y se eligió <b>η = η<sub>mín</sub> / 10</b>, un orden de magnitud por debajo de la
+zona donde el entrenamiento empieza a volverse inestable.</p>
+
+<figure>
+  <img src="../semana2/resultados/lr_range_test.png">
+  <figcaption>Figura 1. <i>LR range test</i>: pérdida de entrenamiento suavizada en función de η. Las líneas punteadas marcan la η elegida.</figcaption>
+</figure>
+
+<table>
+  <tr><th>Optimizador</th><th class="c">η<sub>mín</sub> (menor pérdida)</th><th class="c">η elegida = η<sub>mín</sub>/10</th><th>Observación de la curva</th></tr>
+  <tr><td>SGD</td><td class="c">3.2 × 10⁻²</td><td class="c">3.2 × 10⁻³</td><td>La pérdida apenas baja hasta η ≈ 10⁻²; diverge cerca de η ≈ 1.</td></tr>
+  <tr><td>Momento</td><td class="c">4.1 × 10⁻²</td><td class="c">4.1 × 10⁻³</td><td>Similar a Nesterov.</td></tr>
+  <tr><td>Nesterov</td><td class="c">3.4 × 10⁻²</td><td class="c">3.4 × 10⁻³</td><td>Similar al momento clásico.</td></tr>
+  <tr><td>Adagrad</td><td class="c">2.0 × 10⁻²</td><td class="c">2.0 × 10⁻³</td><td>Es el que tolera las tasas más altas (estable hasta η ≈ 3).</td></tr>
+  <tr><td>RMSprop</td><td class="c">2.5 × 10⁻⁴</td><td class="c">2.5 × 10⁻⁵</td><td>El primero en volverse inestable (η ≈ 10⁻³) y en diverger (η ≈ 0.4).</td></tr>
+  <tr><td>Adam</td><td class="c">3.2 × 10⁻²</td><td class="c">3.2 × 10⁻³</td><td>Las pérdidas más bajas en el rango 10⁻³–10⁻¹, junto con AdamW.</td></tr>
+  <tr><td>AdamW</td><td class="c">2.0 × 10⁻²</td><td class="c">2.0 × 10⁻³</td><td>Prácticamente igual que Adam.</td></tr>
+</table>
+
+<h2 class="pb">4. Resultados</h2>
+
+<h3>4.1 Curvas de aprendizaje</h3>
+<figure>
+  <img src="../semana2/resultados/curvas_optimizadores.png">
+  <figcaption>Figura 2. Pérdida y exactitud de entrenamiento y validación por época (media de 3 semillas; banda: ± una desviación estándar). Pérdidas en escala logarítmica.</figcaption>
+</figure>
+
+<h3>4.2 Tabla de resultados</h3>
+<table class="res">
+  <tr>
+    <th>Optimizador</th><th class="c">η</th><th class="c">Mejor val. acc. (%)</th><th class="c">Test acc. (%)</th>
+    <th class="c">Pérdida train final</th><th class="c">Época en que val ≥ 90 %</th><th class="c">Tiempo / época (s)</th><th class="c">Divergencias</th>
+  </tr>
+  <tr><td>SGD</td><td class="c">3.2e-3</td><td class="c">84.13 ± 1.47</td><td class="c">75.67 ± 1.39</td><td class="c">0.460 ± 0.003</td><td class="c">no alcanza</td><td class="c">2.0</td><td class="c">0/3</td></tr>
+  <tr><td>Momento</td><td class="c">4.1e-3</td><td class="c">95.28 ± 0.84</td><td class="c">89.85 ± 0.18</td><td class="c">0.108 ± 0.010</td><td class="c">8.3 ± 2.1</td><td class="c">2.1</td><td class="c">0/3</td></tr>
+  <tr><td>Nesterov</td><td class="c">3.4e-3</td><td class="c">93.77 ± 1.82</td><td class="c">87.44 ± 4.39</td><td class="c">0.111 ± 0.005</td><td class="c">6.7 ± 1.2</td><td class="c">2.2</td><td class="c">0/3</td></tr>
+  <tr class="best"><td>Adagrad</td><td class="c">2.0e-3</td><td class="c">95.91 ± 0.60</td><td class="c">91.35 ± 1.17</td><td class="c">0.074 ± 0.005</td><td class="c">5.3 ± 1.5</td><td class="c">2.1</td><td class="c">0/3</td></tr>
+  <tr><td>RMSprop</td><td class="c">2.5e-5</td><td class="c">91.47 ± 1.11</td><td class="c">86.69 ± 0.22</td><td class="c">0.203 ± 0.005</td><td class="c">10.3 ± 0.6</td><td class="c">2.2</td><td class="c">0/3</td></tr>
+  <tr><td>Adam</td><td class="c">3.2e-3</td><td class="c">92.90 ± 1.85</td><td class="c">85.62 ± 3.22</td><td class="c">0.164 ± 0.013</td><td class="c">9.3 ± 1.2</td><td class="c">2.4</td><td class="c">0/3</td></tr>
+  <tr><td>AdamW</td><td class="c">2.0e-3</td><td class="c">94.72 ± 0.38</td><td class="c">88.83 ± 2.25</td><td class="c">0.141 ± 0.013</td><td class="c">7.7 ± 3.5</td><td class="c">2.5</td><td class="c">0/3</td></tr>
+</table>
+<p class="nota">Media ± desviación estándar de 3 semillas. "Época en que val ≥ 90 %": primera época en que la exactitud de validación llega al 90 % (velocidad de convergencia). Tiempo por época: solo entrenamiento.</p>
+
+<figure>
+  <img src="../semana2/resultados/barras_test_acc.png" style="width:80%">
+  <figcaption>Figura 3. Exactitud en prueba por optimizador (media ± desviación estándar, 3 semillas).</figcaption>
+</figure>
+
+<h2>5. Análisis</h2>
+<ol>
+  <li><b>SGD sin momento es claramente el peor</b> (75.7 % en prueba). Su pérdida de entrenamiento
+  sigue bajando de forma casi lineal al final de las 15 épocas (0.46, frente a 0.07–0.20 del resto),
+  así que el problema es de <b>velocidad de convergencia</b>, no de capacidad de la red.</li>
+
+  <li><b>El momento multiplica el paso efectivo.</b> En régimen estacionario, el término de velocidad
+  del momento acumula v ≈ g / (1 − μ), así que el paso efectivo es η / (1 − μ) = 10 η para μ = 0.9.
+  Con η parecidas (3.2 × 10⁻³ y 4.1 × 10⁻³), el momento avanza unas 13 veces más por iteración que
+  SGD. Esto explica buena parte de la diferencia de 14 puntos entre ambos.
+  <div class="eq">v<sub>t</sub> = μ v<sub>t−1</sub> + g  ⇒  v<sub>∞</sub> = g / (1 − μ)  ⇒  paso efectivo = η / (1 − μ)</div></li>
+
+  <li><b>Adagrad obtuvo el mejor resultado</b>: 91.35 ± 1.17 % en prueba, la menor pérdida de
+  entrenamiento y la convergencia más rápida (90 % de validación en 5.3 épocas). Una posible
+  explicación es que su acumulador G solo crece, de modo que su paso efectivo η / √G es grande al
+  principio y luego <b>disminuye solo</b>. Es el único algoritmo del estudio con un decaimiento
+  implícito de la tasa de aprendizaje, en un protocolo donde η es constante. Es una hipótesis que
+  queda por comprobar.</li>
+
+  <li><b>Momento es el más estable entre semillas</b> (89.85 ± 0.18 %). Nesterov y Adam muestran la
+  mayor variabilidad (± 4.4 y ± 3.2 puntos): en cada uno, una de las tres semillas cayó a ≈ 82 %.</li>
+
+  <li><b>La validación oscila mucho de una época a otra</b> (figura 2, panel inferior derecho). Con
+  tasa de aprendizaje constante, el optimizador no "se asienta" en el mínimo: por ejemplo, la exactitud
+  de validación de Adagrad en la última época fue 87.1 ± 15.1 %, frente al 95.9 % de su mejor época.
+  Elegir la mejor época por validación es, por tanto, esencial, y esto motiva el estudio de la
+  <b>programación de la tasa de aprendizaje</b> previsto para la semana IV.</li>
+
+  <li><b>El costo por iteración es similar.</b> Todos tardan entre 2.0 y 2.5 s por época. Adam y AdamW
+  son un 20–25 % más lentos que SGD porque mantienen y actualizan dos vectores de estado (m y v) por
+  parámetro.</li>
+
+  <li><b>Diferencia entre validación y prueba.</b> La exactitud en prueba queda entre 4.6 y 8.5 puntos
+  por debajo de la mejor validación. Contribuyen dos efectos: elegir la mejor de 15 épocas sobre solo
+  840 imágenes da una estimación optimista, y la diferencia de distribución entre las carpetas
+  <i>Training</i> y <i>Testing</i> ya observada en la semana I.</li>
+</ol>
+
+<h3>Limitaciones</h3>
+<ul>
+  <li><b>Con 3 semillas, las diferencias dentro del grupo de cabeza no son concluyentes.</b> Adagrad,
+  Momento y AdamW (88.8–91.4 %) están separados por menos de 2.5 puntos, una diferencia comparable a la
+  variabilidad entre semillas de varios optimizadores. Con 3 semillas no es posible ordenarlos con
+  confianza. La única conclusión robusta es que SGD sin momento queda por debajo del resto en este protocolo.</li>
+  <li><b>La regla η = η<sub>mín</sub>/10 es conservadora</b>, y su efecto no es igual para todos. Para
+  SGD el resultado podría deberse en parte a una η demasiado pequeña. Una comprobación pendiente es
+  repetir SGD con η cercana a η<sub>mín</sub> (3 × 10⁻²).</li>
+  <li><b>Adam y AdamW se entrenaron con η distintas</b> (3.2 × 10⁻³ y 2.0 × 10⁻³), así que su diferencia
+  no puede atribuirse solo al <i>weight decay</i> desacoplado.</li>
+  <li>Con 15 épocas, a 128 × 128 y sin preentrenar, la mejor red (91.4 %) queda por debajo del modelo
+  de referencia ResNet-50 preentrenado de la semana I (96.0 %). La comparación es solo orientativa,
+  porque cambian la arquitectura, la resolución y el presupuesto.</li>
+</ul>
+
+<h2>6. Conclusión y siguientes pasos</h2>
+<p>Entrenando desde cero, el optimizador marca diferencias grandes: 15.7 puntos en prueba entre el
+mejor (Adagrad, 91.4 %) y el peor (SGD, 75.7 %). Los métodos con momento o con paso adaptativo superan
+claramente a SGD sin momento, y el análisis del paso efectivo del momento explica buena parte de esa
+diferencia. Dentro del grupo de cabeza, las diferencias son del orden de la variabilidad entre semillas.</p>
+<ul>
+  <li><b>Semana III:</b> caso convexo (regresión logística sobre características extraídas), comparando
+  descenso de gradiente, gradiente conjugado, Newton y L-BFGS con sus tasas de convergencia teóricas.</li>
+  <li><b>Semana IV:</b> programación de la tasa de aprendizaje (escalonada, coseno, OneCycle), para
+  reducir las oscilaciones observadas en validación, y optimización de hiperparámetros.</li>
+</ul>
+
+<h3>Referencias</h3>
+<ul class="nota">
+  <li>Smith, L. N. (2017). Cyclical Learning Rates for Training Neural Networks. WACV. arXiv:1506.01186.</li>
+  <li>He, K., Zhang, X., Ren, S. &amp; Sun, J. (2016). Deep Residual Learning for Image Recognition. CVPR. arXiv:1512.03385.</li>
+  <li>Sutskever, I., Martens, J., Dahl, G. &amp; Hinton, G. (2013). On the importance of initialization and momentum in deep learning. ICML.</li>
+  <li>Duchi, J., Hazan, E. &amp; Singer, Y. (2011). Adaptive Subgradient Methods for Online Learning and Stochastic Optimization. JMLR 12.</li>
+  <li>Kingma, D. P. &amp; Ba, J. (2015). Adam: A Method for Stochastic Optimization. ICLR. arXiv:1412.6980.</li>
+  <li>Loshchilov, I. &amp; Hutter, F. (2019). Decoupled Weight Decay Regularization. ICLR. arXiv:1711.05101.</li>
+</ul>
+
+</body>
+</html>
