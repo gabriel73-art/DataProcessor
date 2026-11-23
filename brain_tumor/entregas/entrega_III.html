@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Entrega III – Proyecto final MEMAD</title>
+<style>
+  @page { size: Letter; margin: 2cm 2cm 2cm 2cm; }
+  body { font-family: "Liberation Serif", "Times New Roman", serif; font-size: 11pt; line-height: 1.4; color: #111; }
+  h1 { font-size: 17pt; text-align: center; margin: 0 0 4pt; }
+  h2 { font-size: 13pt; border-bottom: 1px solid #444; padding-bottom: 2pt; margin-top: 18pt; }
+  h2, h3 { break-after: avoid; page-break-after: avoid; }
+  h3 { font-size: 11.5pt; margin: 12pt 0 4pt; }
+  .sub { text-align: center; margin: 0; }
+  .meta { text-align: center; margin: 8pt 0 14pt; font-size: 10.5pt; }
+  table { border-collapse: collapse; width: 100%; margin: 6pt 0 10pt; font-size: 9.5pt; }
+  tr { page-break-inside: avoid; }
+  table.keep { page-break-inside: avoid; break-inside: avoid; }
+  th, td { border: 1px solid #888; padding: 3pt 5pt; vertical-align: top; text-align: left; }
+  th { background: #e8e8e8; }
+  td.c, th.c { text-align: center; }
+  table.res td.c { white-space: nowrap; }
+  table.res { font-size: 9pt; }
+  table.res th { font-size: 8.5pt; }
+  ul, ol { margin: 2pt 0 4pt; padding-left: 16pt; }
+  li { margin: 2pt 0; }
+  figure { margin: 8pt 0; text-align: center; page-break-inside: avoid; }
+  figure img { width: 100%; }
+  figcaption { font-size: 9.5pt; color: #333; margin-top: 2pt; }
+  .eq { break-inside: avoid; page-break-inside: avoid; font-family: "DejaVu Sans Mono", monospace; font-size: 9.5pt; background: #f4f4f4; padding: 5pt 8pt; margin: 5pt 0; line-height: 1.6; }
+  .nota { font-size: 9.5pt; color: #333; }
+  .pb { page-break-before: always; }
+  code { font-family: "DejaVu Sans Mono", monospace; font-size: 9pt; }
+</style>
+</head>
+<body>
+
+<h1>Estudio comparativo de algoritmos de optimización para el entrenamiento de redes neuronales convolucionales en la clasificación de tumores cerebrales en MRI</h1>
+<p class="sub"><b>Proyecto final – MEMAD · Entrega III</b></p>
+<p class="meta">
+  Alumno: Gabriel Monteagudo · Código: 326056195 <br>
+  CUCEI, Universidad de Guadalajara <br>
+  Fecha de entrega: 23 de noviembre de 2026
+</p>
+
+<h2>1. Objetivo de la semana</h2>
+<p>En la semana II el problema de optimización era el entrenamiento de una red neuronal, que no es
+convexo: la teoría da pocas garantías y solo se puede observar el comportamiento de los algoritmos.
+Esta semana se construye un problema <b>convexo</b> con los mismos datos para comparar métodos de
+primer y segundo orden y <b>contrastar sus tasas de convergencia medidas con las que predice la teoría</b>.</p>
+
+<h2>2. Planteamiento del problema</h2>
+<ol>
+  <li><b>Extracción de características.</b> La ResNet-50 preentrenada en ImageNet se usa <b>congelada</b>,
+  sin su última capa: cada imagen se convierte en un vector de 2 048 números.</li>
+  <li><b>Reducción de dimensión.</b> PCA ajustado solo con el conjunto de entrenamiento, a 256 componentes.
+  Las componentes se escalan para que la primera tenga varianza 1, sin blanquear el resto, de modo que el
+  problema conserve su mal condicionamiento natural. Se añade una columna de unos para el sesgo (d = 257).</li>
+  <li><b>Problema convexo.</b> Regresión logística multiclase (K = 4) con regularización L2, λ = 10⁻³,
+  sobre la misma partición de las semanas anteriores (4 760 imágenes de entrenamiento). El número de
+  parámetros es D = d·K = <b>1 028</b>.</li>
+</ol>
+<div class="eq">
+f(W) = (1/n) Σᵢ [ log Σₖ exp(wₖᵀxᵢ) − w<sub>yᵢ</sub>ᵀxᵢ ] + (λ/2)‖W‖²<br>
+∇f(W) = (1/n) Xᵀ(P − Y) + λW<br>
+∇²f = (1/n) Σᵢ (diag(pᵢ) − pᵢpᵢᵀ) ⊗ xᵢxᵢᵀ + λI
+</div>
+<p><b>Propiedades.</b> f es <b>fuertemente convexa</b> con μ ≥ λ (la pérdida logística es convexa y la
+regularización añade λI), así que tiene un <b>único mínimo</b> w*. Su gradiente es Lipschitz con
+L ≤ ½·λ<sub>máx</sub>(XᵀX/n) + λ, porque diag(p) − ppᵀ ⪯ ½I. Valores medidos:</p>
+<table class="keep">
+  <tr><th>Constante</th><th class="c">Valor</th><th>Significado</th></tr>
+  <tr><td>μ = λ<sub>mín</sub>(∇²f(w*))</td><td class="c">1.00 × 10⁻³</td><td>Curvatura mínima (coincide con λ)</td></tr>
+  <tr><td>L = λ<sub>máx</sub>(∇²f(w*))</td><td class="c">0.1586</td><td>Curvatura máxima en el óptimo</td></tr>
+  <tr><td>L (cota teórica)</td><td class="c">0.5010</td><td>Cota usada para el paso de descenso de gradiente</td></tr>
+  <tr><td>κ = L/μ</td><td class="c">158.6</td><td>Número de condición en el óptimo</td></tr>
+</table>
+
+<h2>3. Métodos implementados</h2>
+<p>Los cuatro se implementaron desde cero (NumPy, doble precisión), parten de w₀ = 0 y se detienen
+cuando ‖∇f‖ ≤ 10⁻¹⁰, al llegar al máximo de iteraciones o a los 120 s.</p>
+<table class="keep">
+  <tr><th style="width:17%">Método</th><th>Detalles</th><th style="width:24%">Costo por iteración</th><th style="width:20%">Convergencia teórica</th></tr>
+  <tr><td>Descenso de gradiente (GD)</td><td>Paso fijo 1/L con la cota de L</td><td>1 gradiente</td><td>Lineal, ρ = 1 − μ/L</td></tr>
+  <tr><td>Gradiente conjugado no lineal (CG)</td><td>Polak–Ribière+, búsqueda lineal casi exacta (Newton en 1D con productos Hessiana-vector), reinicio periódico</td><td>≈ 7 gradientes + 7 productos H·v (por la búsqueda lineal)</td><td>Lineal; referencia (√κ − 1)/(√κ + 1)</td></tr>
+  <tr><td>L-BFGS</td><td>Memoria m = 10, recursión de dos lazos, búsqueda lineal de Armijo</td><td>1 gradiente + O(mD)</td><td>Lineal garantizada (BFGS completo: superlineal)</td></tr>
+  <tr><td>Newton</td><td>Hessiana exacta 1 028 × 1 028, sistema resuelto por Cholesky, paso amortiguado con Armijo</td><td>1 Hessiana + factorización O(D³)</td><td>Cuadrática (local)</td></tr>
+</table>
+<p class="nota">El notebook incluye además una verificación del gradiente y de la Hessiana por diferencias finitas y
+una comparación con <code>scipy.optimize.minimize</code> (L-BFGS-B).</p>
+
+<h2 class="pb">4. Resultados</h2>
+<h3>4.1 Convergencia por iteración y por tiempo</h3>
+<figure>
+  <img src="../semana3/resultados/convergencia.png">
+  <figcaption>Figura 1. f − f* y ‖∇f‖ por iteración (arriba, eje x logarítmico) y por tiempo (abajo).</figcaption>
+</figure>
+
+<h3>4.2 Tabla de resultados</h3>
+<table class="res keep">
+  <tr>
+    <th>Método</th><th class="c">Iteraciones totales</th><th class="c">Iter. hasta<br>f − f* ≤ 10⁻⁶</th><th class="c">Iter. hasta<br>f − f* ≤ 10⁻¹²</th>
+    <th class="c">Tiempo hasta<br>f − f* ≤ 10⁻¹² (s)</th><th class="c">Tiempo / iter. (ms)</th><th class="c">‖∇f‖ final</th><th class="c">Val. / Test acc. (%)</th>
+  </tr>
+  <tr><td>GD</td><td class="c">5 000 (máximo)</td><td class="c">1 839</td><td class="c">4 814</td><td class="c">38.2</td><td class="c">7.9</td><td class="c">3.1 × 10⁻⁸</td><td class="c">90.0 / 85.5</td></tr>
+  <tr><td>CG</td><td class="c">140</td><td class="c">39</td><td class="c">80</td><td class="c">3.7</td><td class="c">89.3</td><td class="c">9.7 × 10⁻¹¹</td><td class="c">90.0 / 85.5</td></tr>
+  <tr><td>L-BFGS</td><td class="c">1 672 (límite de tiempo)</td><td class="c">38</td><td class="c">87</td><td class="c"><b>0.61</b></td><td class="c">7.0*</td><td class="c">4.2 × 10⁻¹⁰</td><td class="c">90.0 / 85.5</td></tr>
+  <tr><td>Newton</td><td class="c"><b>7</b></td><td class="c"><b>5</b></td><td class="c"><b>6</b></td><td class="c">1.67</td><td class="c">285.5</td><td class="c"><b>7.1 × 10⁻¹⁵</b></td><td class="c">90.0 / 85.5</td></tr>
+</table>
+<p class="nota">* Tiempo medio por iteración hasta alcanzar f − f* ≤ 10⁻¹² (iteración 87). Después L-BFGS se estancó
+por el límite de precisión de la máquina (punto 5.5), y el tiempo medio total de 71.8 ms por iteración refleja
+ese estancamiento.</p>
+
+<h2>5. Teoría frente a práctica</h2>
+<figure>
+  <img src="../semana3/resultados/tasas_convergencia.png">
+  <figcaption>Figura 2. Error ‖w<sub>k</sub> − w*‖ en escala logarítmica: una recta indica convergencia lineal. Las líneas
+  discontinuas son las tasas teóricas, ancladas en el error inicial: lo que se compara es su pendiente. La tasa
+  empírica ρ se estimó ajustando una recta a la segunda mitad de las iteraciones previas al límite de redondeo.</figcaption>
+</figure>
+
+<table class="keep">
+  <tr><th>Método</th><th class="c">ρ empírica</th><th class="c">ρ teórica / referencia</th><th>Comentario</th></tr>
+  <tr><td>GD</td><td class="c">0.99772</td><td class="c">1 − μ/L = 0.99800</td><td>Coincide con la teoría (con la cota de L)</td></tr>
+  <tr><td>CG</td><td class="c">0.8454</td><td class="c">(√κ − 1)/(√κ + 1) = 0.8529</td><td>Sigue casi exactamente la referencia</td></tr>
+  <tr><td>L-BFGS</td><td class="c">0.8619</td><td class="c">— (solo garantía lineal)</td><td>Muy parecida a CG</td></tr>
+  <tr><td>Newton</td><td class="c" colspan="2">Cuadrática: ver tabla siguiente</td><td></td></tr>
+</table>
+
+<table class="keep">
+  <tr><th class="c">k</th><th class="c">‖∇f(w<sub>k</sub>)‖</th><th class="c">e<sub>k</sub> = ‖w<sub>k</sub> − w*‖</th><th class="c">e<sub>k</sub> / e<sub>k−1</sub></th><th class="c">e<sub>k</sub> / e<sub>k−1</sub>²</th></tr>
+  <tr><td class="c">0</td><td class="c">4.59 × 10⁻¹</td><td class="c">1.28 × 10¹</td><td class="c">—</td><td class="c">—</td></tr>
+  <tr><td class="c">1</td><td class="c">5.61 × 10⁻²</td><td class="c">6.58</td><td class="c">0.515</td><td class="c">0.040</td></tr>
+  <tr><td class="c">2</td><td class="c">1.99 × 10⁻²</td><td class="c">2.79</td><td class="c">0.424</td><td class="c">0.065</td></tr>
+  <tr><td class="c">3</td><td class="c">5.46 × 10⁻³</td><td class="c">9.03 × 10⁻¹</td><td class="c">0.323</td><td class="c">0.116</td></tr>
+  <tr><td class="c">4</td><td class="c">7.50 × 10⁻⁴</td><td class="c">1.26 × 10⁻¹</td><td class="c">0.139</td><td class="c">0.154</td></tr>
+  <tr><td class="c">5</td><td class="c">1.86 × 10⁻⁵</td><td class="c">3.09 × 10⁻³</td><td class="c">0.025</td><td class="c">0.196</td></tr>
+  <tr><td class="c">6</td><td class="c">1.28 × 10⁻⁸</td><td class="c">2.24 × 10⁻⁶</td><td class="c">7.3 × 10⁻⁴</td><td class="c">0.235</td></tr>
+  <tr><td class="c">7</td><td class="c">7.09 × 10⁻¹⁵</td><td class="c">1.35 × 10⁻¹²</td><td class="c">6.1 × 10⁻⁷</td><td class="c">0.270</td></tr>
+</table>
+
+<h3>Análisis</h3>
+<ol>
+  <li><b>GD confirma la teoría, y muestra el costo de usar una cota de L.</b> La tasa medida (0.99772) coincide
+  con 1 − μ/L = 0.99800 calculada con la cota L = 0.501. La curvatura real en el óptimo es L = 0.159, unas 3.2 veces
+  menor. Con un paso basado en el L real, la teoría da ρ = 1 − 1/κ = 0.9937, lo que equivale a unas tres veces menos
+  iteraciones. La garantía teórica obliga a ser conservador.</li>
+
+  <li><b>CG depende de √κ, no de κ.</b> Su tasa medida (0.8454) sigue casi exactamente la referencia
+  (√κ − 1)/(√κ + 1) = 0.8529 de los problemas cuadráticos (figura 2), aunque el problema no es cuadrático. Por eso
+  necesita 80 iteraciones frente a las 4 814 de GD para llegar a f − f* ≤ 10⁻¹², unas 60 veces menos. Su
+  punto débil es el costo por iteración (89 ms), dominado por la búsqueda lineal casi exacta, que usa unas 7
+  evaluaciones de gradiente y 7 productos Hessiana-vector.</li>
+
+  <li><b>Newton converge cuadráticamente.</b> El cociente e<sub>k</sub>/e<sub>k−1</sub>² se mantiene acotado
+  (entre 0.04 y 0.27) mientras el error cae de 3 × 10⁻³ a 2 × 10⁻⁶ y a 1 × 10⁻¹²: el número de cifras correctas
+  se duplica en cada paso. Alcanza ‖∇f‖ ≤ 10⁻¹⁰ en solo 7 iteraciones (llega a 7 × 10⁻¹⁵); CG también la alcanza, pero en 140. Cada iteración cuesta
+  285 ms (Hessiana de 1 028 × 1 028 más factorización de Cholesky), unas 36 veces más que una de GD.</li>
+
+  <li><b>L-BFGS es el más rápido en tiempo.</b> Llega a f − f* ≤ 10⁻¹² en <b>0.61 s</b>, frente a 1.67 s de Newton,
+  3.7 s de CG y 38.2 s de GD. Necesita casi las mismas iteraciones que CG (87 frente a 80), con una tasa muy
+  parecida (0.862 frente a 0.845), pero cada iteración es unas 13 veces más barata (7 ms frente a 89 ms). La teoría
+  solo le garantiza convergencia lineal, y eso es lo observado. Aun así, su aproximación de la curvatura le da una
+  velocidad comparable a CG con búsqueda exacta.</li>
+
+  <li><b>Límite de la precisión de la máquina.</b> Después de la iteración ≈ 314 (f − f* ≈ 10⁻¹⁶), L-BFGS dejó de
+  avanzar con ‖∇f‖ ≈ 4 × 10⁻¹⁰ y agotó los 120 s haciendo unas 25 evaluaciones de f por iteración. La causa es
+  numérica, no del algoritmo:
+  <div class="eq">f − f* ≈ ‖∇f‖² / (2μ)  ⇒  ‖∇f‖ = 10⁻¹⁰ ↔ f − f* ≈ 5 × 10⁻¹⁸ &lt; precisión de f (≈ 0.33 · 2.2 × 10⁻¹⁶ ≈ 7 × 10⁻¹⁷)</div>
+  La búsqueda lineal de Armijo compara valores de f, así que no puede distinguir mejoras tan pequeñas, y la
+  tolerancia ‖∇f‖ ≤ 10⁻¹⁰ era inalcanzable para ella. Newton sí la alcanzó porque su paso completo (α = 1) lleva
+  directamente a la solución. El notebook se corrigió para detener cualquier método cuando f deja de bajar
+  durante 20 iteraciones.</li>
+
+  <li><b>Todos llegan a la misma solución.</b> Como el problema es fuertemente convexo, el mínimo es único: los cuatro
+  métodos obtienen el mismo clasificador, con 90.0 % de exactitud en validación y 85.5 % en prueba. Lo que cambia es el costo
+  de encontrarlo. Esta exactitud es menor que la de la red entrenada desde cero en la semana II (91.4 %) y la del
+  modelo ajustado de la semana I (96.0 %): las características de ImageNet congeladas no están especializadas en
+  resonancias. Esta semana, sin embargo, la exactitud no era el objetivo.</li>
+</ol>
+
+<h3>Limitaciones</h3>
+<ul>
+  <li>Se estudió un solo valor de λ y de dimensión del PCA. Como μ ≈ λ, un λ menor aumentaría κ y la ventaja de
+  CG, L-BFGS y Newton sobre GD.</li>
+  <li>El costo de Newton crece como O(D³): con D = 1 028 es manejable, pero sin el PCA (2 048 características,
+  D = 8 196) cada factorización sería unas 500 veces más cara y Newton dejaría de ser competitivo.</li>
+  <li>Los tiempos se midieron en la CPU compartida de Colab y pueden variar entre ejecuciones; las iteraciones y
+  las tasas no dependen de eso.</li>
+</ul>
+
+<h2>6. Conclusión</h2>
+<p>En el caso convexo las predicciones teóricas se cumplen con mucha precisión: GD converge linealmente con
+ρ = 1 − μ/L, CG mejora esa tasa al depender de √κ en lugar de κ, y Newton converge cuadráticamente, duplicando las
+cifras correctas en cada iteración. Sin embargo, menos iteraciones no siempre significa menos tiempo. Newton necesita
+solo 6 iteraciones para f − f* ≤ 10⁻¹², pero L-BFGS llega antes (0.61 s frente a 1.67 s) porque cada una de sus
+iteraciones es mucho más barata. En la práctica, L-BFGS ofrece el mejor equilibrio entre velocidad de convergencia y
+costo por iteración.</p>
+
+</body>
+</html>
